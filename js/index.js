@@ -7,28 +7,15 @@
 var video = document.getElementById('video');
 var canvas = document.getElementById('canvas');
 var context = canvas.getContext('2d');
-var scene, camera, innerColor, renderer, time = null;
+var scene, camera, innerColor, renderer, time, controls = null;
 var starField, tunnelMesh, tunnelTexture = null;
 var projector, mouse = { x: 0, y: 0 }, INTERSECTED;
 var selectedFaces = [];
 var mouseSphere = [];
 var targetList = [];
-/*var tracker = new tracking.ColorTracker('cyan');
-tracker.on('track', function (event) {
-  if (event.data.length === 0) {
-    // No colors were detected in this frame.
-  } else {
-    event.data.forEach(function (rect) {
-      target.x = rect.x;
-      target.y = rect.y;
-      console.log(rect.x, rect.y, rect.height, rect.width, rect.color);
-    });
-  }
-});
-tracking.track('#video', tracker, { camera: true });*/
-
-init();
-animate();
+var baseColor=new THREE.Color( 0x44dd66 );
+var highlightedColor=new THREE.Color( 0xddaa00 );
+var selectedColor=new THREE.Color( 0x4466dd );
 
 // Obligatory helper function
 function deg2rad(_degrees) {
@@ -38,9 +25,12 @@ function deg2rad(_degrees) {
 function init() { 
   time = new THREE.Clock();
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
   innerColor = 0x2222ff;
-  renderer = new THREE.WebGLRenderer({ antialias: true });
+  if ( Detector.webgl )
+		renderer = new THREE.WebGLRenderer( {antialias:true} );
+	else
+		renderer = new THREE.CanvasRenderer();
   renderer.setClearColor(0x000000, 0); // background
 
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -61,7 +51,7 @@ function init() {
   var directionalLight = new THREE.DirectionalLight(0xffffff, 1);
   directionalLight.position.set(0, 128, 128);
   scene.add(directionalLight);
-
+  controls = new THREE.OrbitControls( camera, renderer.domElement );
   // Load texture first
   THREE.ImageUtils.crossOrigin = '';
   tunnelTexture = THREE.ImageUtils.loadTexture('./assets/electric.jpg');
@@ -87,6 +77,7 @@ function init() {
   var loader = new THREE.ObjectLoader();
   var monster = null;
   var bird = null;
+
   loader.load("monster/bird.json", 
     function (obj) {
       bird = obj;
@@ -103,7 +94,29 @@ function init() {
     }
   );
 
-  var newSphereGeom = new THREE.SphereGeometry(5, 5, 5);
+  var faceColorMaterial = new THREE.MeshLambertMaterial( 
+	{ color: 0xffffff, vertexColors: THREE.FaceColors,shading:THREE.FlatShading,polygonOffset: true,polygonOffsetUnits: 1,polygonOffsetFactor: 1} );
+	
+	var octaGeom= new THREE.OctahedronGeometry(1,0);
+	for ( var i = 0; i < octaGeom.faces.length; i++ ) 
+	{
+		face = octaGeom.faces[ i ];	
+		face.color= baseColor;		
+	}
+	var octa= new THREE.Mesh( octaGeom, faceColorMaterial );
+  octa.position.z = -100;
+  octa.position.y = 0;
+  octa.position.x = 0;
+	// creates a wireMesh object
+	wireOcta = new THREE.Mesh(octaGeom, new THREE.MeshBasicMaterial({ color: 0x116611, wireframe: true }));
+	
+	scene.add(octa);
+	// wireMesh object is added to the original as a sub-object
+	octa.add(wireOcta );
+	
+	targetList.push(octa);
+
+  var newSphereGeom = new THREE.SphereGeometry(0.1, 0.1, 0.1);
   var sphere = new THREE.Mesh(newSphereGeom, new THREE.MeshBasicMaterial({ color: 0x2266dd }));
   scene.add(sphere);
   mouseSphere.push(sphere);
@@ -139,6 +152,7 @@ function update() {
   checkHighlight();
   CheckMouseSphere();
   ColorSelected();
+  controls.update();
 }
 
 
@@ -205,8 +219,7 @@ function checkSelection(){
 	//if an intersection is detected
 	if ( intersects.length > 0 )
 	{
-		console.log("Hit @ " + toString( intersects[0].point ) );
-		
+		console.log("Hit @ " + toString( intersects[0].point ) );		
 		//test items in selected faces array
 		var test=-1; 
 		selectedFaces.forEach( function(arrayItem)
@@ -294,8 +307,6 @@ function CheckMouseSphere(){
 }
 
 function render() {
-  camera.position.x = mouse.x * 0.05;
-  camera.position.y = -mouse.y * 0.05;
   /*if (monster) {
     monster.position.z -= 1;
     monster.position.y = Math.random();
@@ -341,6 +352,6 @@ function onWindowResize() {
 }
 
 function onDocumentMouseMove( event ) {
-  mouse.x = event.clientX - window.innerWidth/2;
-  mouse.y = event.clientY - window.innerHeight/2;
+  mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+	mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 }

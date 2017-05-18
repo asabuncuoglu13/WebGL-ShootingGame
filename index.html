@@ -18,8 +18,27 @@
     <canvas id="canvas" width="500" height="500"></canvas>
   </div>
   <script src='./js/three.min.js'></script>
+  <script src="./js/Detector.js"></script>
+  <script src="./js/OrbitControls.js"></script>
   <script src="./assets/tracking-min.js"></script>
   <script src="./js/index.js"></script>
+  <script>
+    init(); 
+    animate();
+    var tracker = new tracking.ColorTracker('cyan');
+    tracker.on('track', function (event) {
+      if (event.data.length === 0) {
+        // No colors were detected in this frame.
+      } else {
+        event.data.forEach(function (rect) {
+          mouse.x = rect.x;
+          mouse.y = rect.y;
+          console.log(rect.x, rect.y, rect.height, rect.width, rect.color);
+        });
+      }
+    });
+    tracking.track('#video', tracker, { camera: true });
+  </script>
 </body>
 
 </html>
