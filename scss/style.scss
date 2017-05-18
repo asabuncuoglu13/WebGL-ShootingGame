@@ -1,0 +1,37 @@
+@import "compass/css3";
+
+@import "compass/reset";
+body {margin: 0;background:#000/*iOS fix*/}
+canvas {
+  position: absolute; 
+  top: 0;left: 0;bottom: 0;right: 0;
+  /*cursor: -webkit-grab; 
+  cursor:-moz-grab; 
+  &:active { 
+    cursor: -webkit-grabbing; 
+    cursor:-moz-grabbing;
+  }*/
+}
+canvas {position: absolute; top: 0;left: 0;bottom: 0;right: 0;}
+
+.collection {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 10000;
+  a {
+    display: block;
+    padding: 5px;
+    background: rgba(0,0,0,0.6);
+    color:#fff;
+    text-decoration: none;
+    font: 700 12px Consolas, system, monospace;
+    @include transition(all 250ms linear);
+    &:hover {
+      background: #fff;
+      color: #000;
+    }
+  }
+  .prev {text-align: left;float: left;}
+  .next {text-align: right;float: right;}
+}
