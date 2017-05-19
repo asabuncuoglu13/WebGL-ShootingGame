@@ -1,36 +1,30 @@
-/*!
- * WebGL Tunnel - Luigi Mannoni
- * luigimannoni.com / codepen.io/luigimannoni
- * CC BY-NC 4.0 http://creativecommons.org/licenses/by-nc/4.0/ 
- */
-
-var video = document.getElementById('video');
-var canvas = document.getElementById('canvas');
-var context = canvas.getContext('2d');
+// Common Variables
 var scene, camera, innerColor, renderer, time, controls = null;
 var starField, tunnelMesh, tunnelTexture = null;
 var projector, mouse = { x: 0, y: 0 }, INTERSECTED;
 var selectedFaces = [];
 var mouseSphere = [];
 var targetList = [];
-var baseColor=new THREE.Color( 0x44dd66 );
-var highlightedColor=new THREE.Color( 0xddaa00 );
-var selectedColor=new THREE.Color( 0x4466dd );
+var baseColor = new THREE.Color(0x44dd66);
+var highlightedColor = new THREE.Color(0xddaa00);
+var selectedColor = new THREE.Color(0x4466dd);
+var sphere;
 
-// Obligatory helper function
+// Helper function to convert degrees to radian
 function deg2rad(_degrees) {
   return (_degrees * Math.PI / 180);
 }
 
-function init() { 
+// initialize the objects, camera, scene ...
+function init() {
   time = new THREE.Clock();
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
   innerColor = 0x2222ff;
-  if ( Detector.webgl )
-		renderer = new THREE.WebGLRenderer( {antialias:true} );
-	else
-		renderer = new THREE.CanvasRenderer();
+  if (Detector.webgl)
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+  else
+    renderer = new THREE.CanvasRenderer();
   renderer.setClearColor(0x000000, 0); // background
 
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -51,7 +45,7 @@ function init() {
   var directionalLight = new THREE.DirectionalLight(0xffffff, 1);
   directionalLight.position.set(0, 128, 128);
   scene.add(directionalLight);
-  controls = new THREE.OrbitControls( camera, renderer.domElement );
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
   // Load texture first
   THREE.ImageUtils.crossOrigin = '';
   tunnelTexture = THREE.ImageUtils.loadTexture('./assets/electric.jpg');
@@ -78,9 +72,10 @@ function init() {
   var monster = null;
   var bird = null;
 
-  loader.load("monster/bird.json", 
+  loader.load("monster/bird.json",
     function (obj) {
       bird = obj;
+      targetList.push(bird);
       bird.position.z = 100;
       scene.add(bird);
     }
@@ -89,35 +84,35 @@ function init() {
   loader.load("monster/monster.json",
     function (obj) {
       monster = obj;
+      targetList.push(monster);
       monster.position.z = 5;
       scene.add(monster);
     }
   );
 
-  var faceColorMaterial = new THREE.MeshLambertMaterial( 
-	{ color: 0xffffff, vertexColors: THREE.FaceColors,shading:THREE.FlatShading,polygonOffset: true,polygonOffsetUnits: 1,polygonOffsetFactor: 1} );
-	
-	var octaGeom= new THREE.OctahedronGeometry(1,0);
-	for ( var i = 0; i < octaGeom.faces.length; i++ ) 
-	{
-		face = octaGeom.faces[ i ];	
-		face.color= baseColor;		
-	}
-	var octa= new THREE.Mesh( octaGeom, faceColorMaterial );
+  var faceColorMaterial = new THREE.MeshLambertMaterial(
+    { color: 0xffffff, vertexColors: THREE.FaceColors, shading: THREE.FlatShading, polygonOffset: true, polygonOffsetUnits: 1, polygonOffsetFactor: 1 });
+
+  var octaGeom = new THREE.OctahedronGeometry(1, 0);
+  for (var i = 0; i < octaGeom.faces.length; i++) {
+    face = octaGeom.faces[i];
+    face.color = baseColor;
+  }
+  var octa = new THREE.Mesh(octaGeom, faceColorMaterial);
   octa.position.z = -100;
   octa.position.y = 0;
   octa.position.x = 0;
-	// creates a wireMesh object
-	wireOcta = new THREE.Mesh(octaGeom, new THREE.MeshBasicMaterial({ color: 0x116611, wireframe: true }));
-	
-	scene.add(octa);
-	// wireMesh object is added to the original as a sub-object
-	octa.add(wireOcta );
-	
-	targetList.push(octa);
+  // creates a wireMesh object
+  wireOcta = new THREE.Mesh(octaGeom, new THREE.MeshBasicMaterial({ color: 0x116611, wireframe: true }));
 
-  var newSphereGeom = new THREE.SphereGeometry(0.1, 0.1, 0.1);
-  var sphere = new THREE.Mesh(newSphereGeom, new THREE.MeshBasicMaterial({ color: 0x2266dd }));
+  scene.add(octa);
+  // wireMesh object is added to the original as a sub-object
+  octa.add(wireOcta);
+
+  targetList.push(octa);
+
+  var newSphereGeom = new THREE.SphereGeometry(0.2, 0.2, 0.2);
+  sphere = new THREE.Mesh(newSphereGeom, new THREE.MeshBasicMaterial({ color: 0x2266dd }));
   scene.add(sphere);
   mouseSphere.push(sphere);
 
@@ -151,159 +146,62 @@ function animate() {
 function update() {
   checkHighlight();
   CheckMouseSphere();
-  ColorSelected();
+  //ColorSelected();
   controls.update();
 }
 
+function ColorSelected() {
+  selectedFaces.forEach(function (arrayItem) {
+    arrayItem.face.color = selectedColor;
+    arrayItem.object.geometry.colorsNeedUpdate = true;
+  });
+}
 
-function checkSelection() {
+function checkHighlight() {
   // find intersections
 
   // create a Ray with origin at the mouse position
   //   and direction into the scene (camera direction)
   var vector = new THREE.Vector3(mouse.x, mouse.y, 1);
-  projector.unprojectVector(vector, camera);
+  vector.unproject(camera);
   var ray = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize());
 
   // create an array containing all objects in the scene with which the ray intersects
-  var intersects = ray.intersectObjects(targetList);
+  var intersects = ray.intersectObjects(targetList, true);
 
-  //if an intersection is detected
-  if (intersects.length > 0) {
-    console.log("Hit @ " + toString(intersects[0].point));
+  // INTERSECTED = the object in the scene currently closest to the camera 
+  //		and intersected by the Ray projected from the mouse position 	
 
-    //test items in selected faces array
-    var test = -1;
-    selectedFaces.forEach(function (arrayItem) {
-      // if the faceIndex and object ID are the same between the intersect and selected faces ,
-      // the face index is recorded
-      if (intersects[0].faceIndex == arrayItem.faceIndex && intersects[0].object.id == arrayItem.object.id) {
-        test = selectedFaces.indexOf(arrayItem);
-      }
-    });
-
-    // if is a previously selected face, change the color back to green, otherswise change to blue
-    if (test >= 0) {
-      intersects[0].face.color = new THREE.Color(0x44dd66);
-      selectedFaces.splice(test, 1);
+  // if there is one (or more) intersections
+  if (intersects.length > 0) {	// case if mouse is not currently over an object
+    if (INTERSECTED == null) {
+      INTERSECTED = intersects[0];
     }
-    else {
-      intersects[0].face.color = new THREE.Color(0x222288);
-      selectedFaces.push(intersects[0]);
+    else {	// if thse mouse is over an object
+      INTERSECTED = intersects[0];
     }
+    // upsdate mouseSphere coordinates and update colors
+    mouseSphereCoords = [INTERSECTED.point.x, INTERSECTED.point.y, INTERSECTED.point.z];
 
-    intersects[0].object.geometry.colorsNeedUpdate = true;
+  }
+  else // there are no intersections
+  {
+    INTERSECTED = null;
+    mouseSphereCoords = null;
+    
   }
 }
 
-function ColorSelected(){
-	selectedFaces.forEach( function(arrayItem)
-		{
-			arrayItem.face.color = selectedColor;
-			arrayItem.object.geometry.colorsNeedUpdate = true;
-		});
-}
-
-function checkSelection(){
-	// find intersections
-
-	// create a Ray with origin at the mouse position
-	//   and direction into the scene (camera direction)
-	var vector = new THREE.Vector3( mouse.x, mouse.y, 1 );
-	projector.unprojectVector( vector, camera );
-	var ray = new THREE.Raycaster( camera.position, vector.sub( camera.position ).normalize() );
-
-	// create an array containing all objects in the scene with which the ray intersects
-	var intersects = ray.intersectObjects( targetList );
-
-	//if an intersection is detected
-	if ( intersects.length > 0 )
-	{
-		console.log("Hit @ " + toString( intersects[0].point ) );		
-		//test items in selected faces array
-		var test=-1; 
-		selectedFaces.forEach( function(arrayItem)
-		{
-			// if the faceIndex and object ID are the same between the intersect and selected faces ,
-			// the face index is recorded
-			if(intersects[0].faceIndex==arrayItem.faceIndex && intersects[0].object.id==arrayItem.object.id){
-				test=selectedFaces.indexOf(arrayItem);
-			}
-		});
-		
-		// if is a previously selected face, change the color back to green, otherswise change to blue
-		if(test>=0){
-			intersects[ 0 ].face.color=new THREE.Color( 0x44dd66 ); 
-			selectedFaces.splice(test, 1);
-		}
-		else{
-			intersects[ 0 ].face.color=new THREE.Color( 0x222288 ); 
-			selectedFaces.push(intersects[0]);
-		}
-		
-		intersects[ 0 ].object.geometry.colorsNeedUpdate = true;
-	}
-}
-function checkHighlight(){
-	// find intersections
-
-	// create a Ray with origin at the mouse position
-	//   and direction into the scene (camera direction)
-	var vector = new THREE.Vector3( mouse.x, mouse.y, 1 );
-	projector.unprojectVector( vector, camera );
-	var ray = new THREE.Raycaster( camera.position, vector.sub( camera.position ).normalize() );
-
-	// create an array containing all objects in the scene with which the ray intersects
-	var intersects = ray.intersectObjects( targetList );
-
-	// INTERSECTED = the object in the scene currently closest to the camera 
-	//		and intersected by the Ray projected from the mouse position 	
-	
-	// if there is one (or more) intersections
-	if ( intersects.length > 0 )
-	{	// case if mouse is not currently over an object
-		if(INTERSECTED==null){
-			INTERSECTED = intersects[ 0 ];
-			INTERSECTED.face.color = highlightedColor;
-		}
-		else{	// if thse mouse is over an object
-			INTERSECTED.face.color= baseColor;
-			INTERSECTED.object.geometry.colorsNeedUpdate=true;
-			INTERSECTED = intersects[ 0 ];
-			INTERSECTED.face.color = highlightedColor;			
-		}
-		// upsdate mouseSphere coordinates and update colors
-		mouseSphereCoords = [INTERSECTED.point.x,INTERSECTED.point.y,INTERSECTED.point.z];
-		INTERSECTED.object.geometry.colorsNeedUpdate=true;
-		
-	} 
-	else // there are no intersections
-	{
-		// restore previous intersection object (if it exists) to its original color
-		if ( INTERSECTED ){
-			INTERSECTED.face.color = baseColor;
-			INTERSECTED.object.geometry.colorsNeedUpdate=true;
-		}
-		// remove previous intersection object reference
-		//     by setting current intersection object to "nothing"
-		
-		INTERSECTED = null;
-		mouseSphereCoords = null;
-		
-		
-	}
-}
-
-function CheckMouseSphere(){
-	// if the coordinates exist, make the sphere visible
-	if(mouseSphereCoords != null){
-		//console.log(mouseSphereCoords[0].toString()+","+mouseSphereCoords[1].toString()+","+mouseSphereCoords[2].toString());
-		mouseSphere[0].position.set(mouseSphereCoords[0],mouseSphereCoords[1],mouseSphereCoords[2]);
-		mouseSphere[0].visible = true;
-	}
-	else{ // otherwise hide the sphere
-		mouseSphere[0].visible = false;
-	}
+function CheckMouseSphere() {
+  // if the coordinates exist, make the sphere visible
+  if (mouseSphereCoords != null) {
+    //console.log(mouseSphereCoords[0].toString()+","+mouseSphereCoords[1].toString()+","+mouseSphereCoords[2].toString());
+    mouseSphere[0].position.set(mouseSphereCoords[0], mouseSphereCoords[1], mouseSphereCoords[2]);
+    mouseSphere[0].visible = true;
+  }
+  else { // otherwise hide the sphere
+    mouseSphere[0].visible = false;
+  }
 }
 
 function render() {
@@ -333,15 +231,20 @@ function render() {
 
 // Mouse and resize events
 window.addEventListener('resize', onWindowResize, false);
-document.addEventListener( 'mousemove', onDocumentMouseMove, false );
-document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+document.addEventListener('mousemove', onDocumentMouseMove, false);
+document.addEventListener('mousedown', onDocumentMouseDown, false);
 
-function onDocumentMouseDown( event ) 
-{
-	//console.log("Click.");
-	mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-	mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
-	checkSelection();	
+function onDocumentMouseDown(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+  var vector = new THREE.Vector3(mouse.x, mouse.y, 1).unproject(camera);
+  var ray = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize());
+
+  var intersects = ray.intersectObjects(targetList, true);
+  console.log(targetList);
+  if (intersects.length > 0) {
+    console.log("hitting something");
+  }
 }
 
 
@@ -351,7 +254,7 @@ function onWindowResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-function onDocumentMouseMove( event ) {
-  mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-	mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+function onDocumentMouseMove(event) {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
 }

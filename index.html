@@ -23,16 +23,19 @@
   <script src="./assets/tracking-min.js"></script>
   <script src="./js/index.js"></script>
   <script>
-    init(); 
+    init();
     animate();
+    var video = document.getElementById('video');
+    var canvas = document.getElementById('canvas');
+    var context = canvas.getContext('2d');
     var tracker = new tracking.ColorTracker('cyan');
     tracker.on('track', function (event) {
       if (event.data.length === 0) {
         // No colors were detected in this frame.
       } else {
         event.data.forEach(function (rect) {
-          mouse.x = rect.x;
-          mouse.y = rect.y;
+          //mouse.x = rect.x;
+          //mouse.y = rect.y;
           console.log(rect.x, rect.y, rect.height, rect.width, rect.color);
         });
       }
