@@ -9,6 +9,8 @@ var baseColor = new THREE.Color(0x44dd66);
 var highlightedColor = new THREE.Color(0xddaa00);
 var selectedColor = new THREE.Color(0x4466dd);
 var sphere;
+var monster = null;
+var bird = null;
 
 // Helper function to convert degrees to radian
 function deg2rad(_degrees) {
@@ -69,9 +71,6 @@ function init() {
   scene.add(tunnelMesh);
 
   var loader = new THREE.ObjectLoader();
-  var monster = null;
-  var bird = null;
-
   loader.load("monster/bird.json",
     function (obj) {
       bird = obj;
@@ -89,27 +88,6 @@ function init() {
       scene.add(monster);
     }
   );
-
-  var faceColorMaterial = new THREE.MeshLambertMaterial(
-    { color: 0xffffff, vertexColors: THREE.FaceColors, shading: THREE.FlatShading, polygonOffset: true, polygonOffsetUnits: 1, polygonOffsetFactor: 1 });
-
-  var octaGeom = new THREE.OctahedronGeometry(1, 0);
-  for (var i = 0; i < octaGeom.faces.length; i++) {
-    face = octaGeom.faces[i];
-    face.color = baseColor;
-  }
-  var octa = new THREE.Mesh(octaGeom, faceColorMaterial);
-  octa.position.z = -100;
-  octa.position.y = 0;
-  octa.position.x = 0;
-  // creates a wireMesh object
-  wireOcta = new THREE.Mesh(octaGeom, new THREE.MeshBasicMaterial({ color: 0x116611, wireframe: true }));
-
-  scene.add(octa);
-  // wireMesh object is added to the original as a sub-object
-  octa.add(wireOcta);
-
-  targetList.push(octa);
 
   var newSphereGeom = new THREE.SphereGeometry(0.2, 0.2, 0.2);
   sphere = new THREE.Mesh(newSphereGeom, new THREE.MeshBasicMaterial({ color: 0x2266dd }));
@@ -144,17 +122,26 @@ function animate() {
 }
 
 function update() {
+  if(monster.position.z < -100)
+  {
+    var randNumZ = getRandomArbitrary(80, 150);
+    monster.position.z = randNumZ;
+    var randNumX = getRandomArbitrary(-20, 20);
+    monster.position.x = randNumX;
+    var randNumY = getRandomArbitrary(-20, 20);
+    monster.position.y = randNumY;
+  }
+
   checkHighlight();
   CheckMouseSphere();
-  //ColorSelected();
   controls.update();
-}
 
-function ColorSelected() {
-  selectedFaces.forEach(function (arrayItem) {
-    arrayItem.face.color = selectedColor;
-    arrayItem.object.geometry.colorsNeedUpdate = true;
-  });
+  if (monster) {
+    monster.position.z -= 1;
+  }
+  if (bird) {
+    bird.position.z -= 1;
+  }
 }
 
 function checkHighlight() {
@@ -205,14 +192,7 @@ function CheckMouseSphere() {
 }
 
 function render() {
-  /*if (monster) {
-    monster.position.z -= 1;
-    monster.position.y = Math.random();
-  }
-  if (bird) {
-    bird.position.z -= 1;
-    bird.position.y = Math.random();
-  }*/
+
   camera.lookAt(scene.position);
   starField.rotation.z += 0.005;
 
@@ -257,4 +237,8 @@ function onWindowResize() {
 function onDocumentMouseMove(event) {
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+}
+
+function getRandomArbitrary(min, max) {
+  return Math.floor(Math.random() * (max - min)) + min;
 }
