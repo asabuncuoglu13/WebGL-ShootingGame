@@ -18,11 +18,17 @@
     <canvas id="canvas" width="500" height="500"></canvas>
   </div>
   <script src='./js/three.min.js'></script>
+  <script src='./js/ammo.js'></script>
   <script src="./js/Detector.js"></script>
   <script src="./js/OrbitControls.js"></script>
   <script src="./assets/tracking-min.js"></script>
   <script src="./js/index.js"></script>
   <script>
+    if ( ! Detector.webgl ) {
+		    Detector.addGetWebGLMessage();
+		    document.getElementById( 'container' ).innerHTML = "";
+		}
+
     init();
     animate();
     var video = document.getElementById('video');
