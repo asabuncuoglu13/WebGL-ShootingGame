@@ -48,7 +48,7 @@ function init() {
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  camera.position.z = -110;
+  camera.position.z = -100;
   camera.lookAt(scene.position);
   //scene.fog = new THREE.Fog(0x000000, 100, 700);
 
