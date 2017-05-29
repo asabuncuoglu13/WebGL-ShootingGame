@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>WebGL Tunnel</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css">
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+
+<body>
+  <!--audio autoplay="true" controls="false" loop="true" preload="true">
+    <source src="./assets/doctorwho.mp3" type="audio/mp3"></source>
+    Your browser does not support the audio element.
+  </audio-->
+  <div class="container">
+    <video id="video" width="500" height="500" preload autoplay loop muted controls></video>
+    <canvas id="canvas" width="500" height="500"></canvas>
+    <div id="overlay">
+      <div>Score: <span id="score"></span></div>
+    </div>
+  </div>
+  <div class="counter" style="z-index: 1000">
+    <p id="counter"></p>
+  </div>
+  <script src='./assets/three.min.js'></script>
+  <script src='./assets/ammo.js'></script>
+  <script src="./assets/Detector.js"></script>
+  <script src="./assets/OrbitControls.js"></script>
+  <script src="./assets/tracking-min.js"></script>
+  <script src="./assets/src/index_laser.js"></script>
+  <script src='./assets/src/LASER.laserbeam.js'></script>
+  <script src='./assets/src/LASER.laserPros.js'></script>
+  <script>
+    if (!Detector.webgl) {
+      Detector.addGetWebGLMessage();
+      document.getElementById('container').innerHTML = "";
+    }
+
+    init();
+    animate();
+    var video = document.getElementById('video');
+    var canvas = document.getElementById('canvas');
+    var context = canvas.getContext('2d');
+    var tracker = new tracking.ColorTracker('cyan');
+    var target = { x: 0, y: 0};
+    tracker.on('track', function (event) {
+      if (event.data.length === 0) {
+        // No colors were detected in this frame.
+      } else {
+        event.data.forEach(function (rect) {
+          target.x = rect.x; target.y = rect.y;
+          console.log(target.x, target.y, rect.height, rect.width, rect.color);
+        });
+      }
+    });
+    tracking.track('#video', tracker, { camera: true });
+  </script>
+</body>
+
+</html>

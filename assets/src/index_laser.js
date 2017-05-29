@@ -4,30 +4,25 @@ var starField, tunnelMesh, tunnelTexture = null;
 var projector, mouse = { x: 0, y: 0 }, INTERSECTED;
 var pos = new THREE.Vector3();
 var selectedFaces = [];
+var onRenderFcts = [];
 var mouseSphere = [];
 var targetList = [];
 var baseColor = new THREE.Color(0x44dd66);
 var highlightedColor = new THREE.Color(0xddaa00);
 var selectedColor = new THREE.Color(0x4466dd);
 var ballMaterial = new THREE.MeshPhongMaterial({ color: 0x202020 });
-var sphere;
+var sphere, laserBeam, laserobject;
 var monster = null;
 var bird = null;
 var quat = new THREE.Quaternion();
 var time = new THREE.Clock();
 var rigidBodies = [];
+var score = 0;
+var hitted = false;
 
-// Common Variables for Physics
-var gravityConstant = -9.8;
-var collisionConfiguration;
-var dispatcher;
-var broadphase;
-var solver;
-var physicsWorld;
-var terrainBody;
-var margin = 0.05;
-var dynamicObjects = [];
-var transformAux1 = new Ammo.btTransform();
+var scoreElement = document.getElementById("score");
+var scoreNode = document.createTextNode("");
+scoreElement.appendChild(scoreNode);
 
 // Helper function to convert degrees to radian
 function deg2rad(_degrees) {
@@ -93,14 +88,12 @@ function init() {
       monster = obj;
       targetList.push(monster);
       monster.position.z = 5;
+      monster.rotation.x = - Math.PI / 2;
+      monster.rotation.z = - Math.PI / 2;
+      monster.rotation.y = - Math.PI / 2;
       scene.add(monster);
     }
   );
-
-  var monsterMass = 2.5;
-  var monsterLength = 1.2;
-  var monsterDepth = 0.6;
-  var monsterHeight = monsterLength * 0.5;
 
   var newSphereGeom = new THREE.SphereGeometry(0.2, 0.2, 0.2);
   sphere = new THREE.Mesh(newSphereGeom, new THREE.MeshBasicMaterial({ color: 0x2266dd }));
@@ -125,16 +118,6 @@ function init() {
   starField.position.z = 400;
 
   projector = new THREE.Projector();
-  initPhysics();
-}
-
-function initPhysics() {
-  collisionConfiguration = new Ammo.btDefaultCollisionConfiguration();
-  dispatcher = new Ammo.btCollisionDispatcher(collisionConfiguration);
-  broadphase = new Ammo.btDbvtBroadphase();
-  solver = new Ammo.btSequentialImpulseConstraintSolver();
-  physicsWorld = new Ammo.btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfiguration);
-  physicsWorld.setGravity( new Ammo.btVector3( 0, -9.8, 0 ) );
 }
 
 function animate() {
@@ -146,9 +129,9 @@ function animate() {
 function update() {
 
   var deltaTime = time.getDelta();
-  updatePhysics(deltaTime);
 
   if (monster.position.z < -100) {
+    hitted = false;
     var randNumZ = getRandomArbitrary(80, 150);
     monster.position.z = randNumZ;
     var randNumX = getRandomArbitrary(-20, 20);
@@ -157,24 +140,31 @@ function update() {
     monster.position.y = randNumY;
   }
 
-  checkHighlight();
+  if (hitted) {
+    monster.position.x -= getRandomArbitrary(-2, 2);
+    monster.position.y -= 1;
+  }
+
+  checkIntersection();
   CheckMouseSphere();
   controls.update();
 
   if (monster) {
     monster.position.z -= 1;
   }
-  if (bird) {
-    bird.position.z -= 1;
+
+  if (laserobject) {
+    laserobject.position.z += 1;
   }
+
 }
 
-function checkHighlight() {
+function checkIntersection() {
   // find intersections
 
   // create a Ray with origin at the mouse position
   //   and direction into the scene (camera direction)
-  var vector = new THREE.Vector3(mouse.x, mouse.y, 1);
+  var vector = new THREE.Vector3(laserobject.position.x, laserobject.position.y, 1);
   vector.unproject(camera);
   var ray = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize());
 
@@ -216,63 +206,6 @@ function CheckMouseSphere() {
   }
 }
 
-function createRigidBody(threeObject, physicsShape, mass, pos, quat) {
-
-  threeObject.position.copy(pos);
-  threeObject.quaternion.copy(quat);
-
-  var transform = new Ammo.btTransform();
-  transform.setIdentity();
-  transform.setOrigin(new Ammo.btVector3(pos.x, pos.y, pos.z));
-  transform.setRotation(new Ammo.btQuaternion(quat.x, quat.y, quat.z, quat.w));
-  var motionState = new Ammo.btDefaultMotionState(transform);
-
-  var localInertia = new Ammo.btVector3(0, 0, 0);
-  physicsShape.calculateLocalInertia(mass, localInertia);
-
-  var rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, physicsShape, localInertia);
-  var body = new Ammo.btRigidBody(rbInfo);
-
-  threeObject.userData.physicsBody = body;
-
-  scene.add(threeObject);
-
-  if (mass > 0) {
-
-    rigidBodies.push(threeObject);
-
-    // Disable deactivation
-    body.setActivationState(4);
-
-  }
-
-  physicsWorld.addRigidBody(body);
-
-  return body;
-}
-function updatePhysics(deltaTime) {
-
-  // Step world
-  physicsWorld.stepSimulation(deltaTime, 10);
-
-  // Update rigid bodies
-  for (var i = 0, il = rigidBodies.length; i < il; i++) {
-    var objThree = rigidBodies[i];
-    var objPhys = objThree.userData.physicsBody;
-    var ms = objPhys.getMotionState();
-    if (ms) {
-
-      ms.getWorldTransform(transformAux1);
-      var p = transformAux1.getOrigin();
-      var q = transformAux1.getRotation();
-      objThree.position.set(p.x(), p.y(), p.z());
-      objThree.quaternion.set(q.x(), q.y(), q.z(), q.w());
-
-    }
-  }
-
-}
-
 function render() {
 
   camera.lookAt(scene.position);
@@ -297,36 +230,43 @@ document.addEventListener('mousemove', onDocumentMouseMove, false);
 document.addEventListener('mousedown', onDocumentMouseDown, false);
 
 function onDocumentMouseDown(event) {
+  scene.remove(laserobject);
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+  
+  laserBeam = new LASER.LaserBeam();
+  laserobject = laserBeam.object3d;
+  scene.add(laserobject);
+  laserobject.position.z = -95;
+  laserobject.position.x = -mouse.x * 25;
+  laserobject.position.y = mouse.y * 25;
+
   var vector = new THREE.Vector3(mouse.x, mouse.y, 1).unproject(camera);
-  var ray = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize());
+  //var ray = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize());
+
+  var laserPros = new LASER.LaserPros(laserBeam);
+  onRenderFcts.push(function (delta, now) {
+    laserPros.update(delta, now)
+  });
+  var angle = Math.atan(Math.abs(mouse.y / mouse.x));
+  if (mouse.x > 0 && mouse.y > 0)
+    laserobject.rotation.z = - angle;
+  else if (mouse.x < 0 && mouse.y > 0)
+    laserobject.rotation.z = - Math.PI + angle;
+  else if (mouse.x < 0 && mouse.y < 0)
+    laserobject.rotation.z = - Math.PI - angle;
+  else
+    laserobject.rotation.z = -2 * Math.PI + angle;
+  //laserobject.rotation.y	= deg2rad( Math.atan(mouse.y / mouse.x));
 
   var intersects = ray.intersectObjects(targetList, true);
-  console.log(targetList);
+  console.log("mouse.x = " + mouse.x + "mouse.y = " + mouse.y);
   if (intersects.length > 0) {
     console.log("hitting something");
+    hitted = true;
+    score += 10;
+    scoreNode.value = score;
   }
-
-  // Creates a ball
-  var ballMass = 3;
-  var ballRadius = 0.4;
-
-  var ball = new THREE.Mesh(new THREE.SphereGeometry(ballRadius, 18, 16), ballMaterial);
-  ball.castShadow = true;
-  ball.receiveShadow = true;
-  var ballShape = new Ammo.btSphereShape(ballRadius);
-  ballShape.setMargin(margin);
-  pos.copy(ray.ray.direction);
-  pos.add(ray.ray.origin);
-  quat.set(0, 0, 0, 1);
-  var ballBody = createRigidBody(ball, ballShape, ballMass, pos, quat);
-  ballBody.setFriction(0.5);
-
-  pos.copy(ray.ray.direction);
-  pos.multiplyScalar(14);
-  ballBody.setLinearVelocity(new Ammo.btVector3(pos.x, pos.y, pos.z));
-
 }
 
 

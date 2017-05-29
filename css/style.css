@@ -19,6 +19,15 @@ time, mark, audio, video {
   vertical-align: baseline;
 }
 
+.container {
+    position: relative;
+}
+#overlay {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+}
+
 html {
   line-height: 1;
 }
